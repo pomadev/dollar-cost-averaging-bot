@@ -55,7 +55,14 @@ func (c *BitflyerClient) order(pair string, yen int64) error {
 	if err != nil {
 		return fmt.Errorf("Failed to get price: %s", err)
 	}
-	amount := common.CalcAmount(price, yen, 1000)
+	var amount float64
+	if pair == BTC_JPY {
+		amount = common.CalcAmount(price, yen, 1000)
+	} else if pair == ETH_JPY {
+		amount = common.CalcAmount(price, yen, 100)
+	} else {
+		amount = 0
+	}
 	if amount == 0 {
 		log.Print("Amount is too small")
 		return nil
