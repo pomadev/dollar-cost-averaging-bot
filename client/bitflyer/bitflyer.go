@@ -45,6 +45,10 @@ type orderRequest struct {
 	Size           float64 `json:"size"`
 }
 
+type orderResponse struct {
+	ErrorMessage string `json:"error_message"`
+}
+
 func (c *BitflyerClient) order(pair string, yen int64) error {
 	price, err := getPrice(pair)
 	if err != nil {
@@ -79,7 +83,11 @@ func (c *BitflyerClient) order(pair string, yen int64) error {
 	defer res.Body.Close()
 
 	if res.StatusCode != 200 {
-		return fmt.Errorf("Failed to send request HTTP Status Code: %s", res.Status)
+		var orderResponse orderResponse
+		if err := json.NewDecoder(res.Body).Decode(&orderResponse); err != nil {
+			return fmt.Errorf("Failed to decode response: %s", err)
+		}
+		return fmt.Errorf("Failed to send request HTTP Status Code: %s, %s", res.Status, orderResponse.ErrorMessage)
 	}
 	return nil
 }
