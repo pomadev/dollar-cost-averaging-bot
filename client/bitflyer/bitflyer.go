@@ -85,8 +85,8 @@ func (c *BitflyerClient) order(pair string, yen int64) error {
 }
 
 type tickerResponse struct {
-	State string `json:"state"`
-	Ltp   int    `json:"ltp"`
+	State string  `json:"state"`
+	Ltp   float64 `json:"ltp"`
 }
 
 func getPrice(pair string) (int64, error) {
