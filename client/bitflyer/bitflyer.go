@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"time"
 
@@ -54,7 +55,11 @@ func (c *BitflyerClient) order(pair string, yen int64) error {
 	if err != nil {
 		return fmt.Errorf("Failed to get price: %s", err)
 	}
-	amount := common.CalcAmount(price, yen, 100000000)
+	amount := common.CalcAmount(price, yen, 1000)
+	if amount == 0 {
+		log.Print("Amount is too small")
+		return nil
+	}
 	requestBody := orderRequest{
 		ProductCode:    pair,
 		ChildOrderType: "MARKET",

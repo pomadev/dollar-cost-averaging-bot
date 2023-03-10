@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"strconv"
 	"time"
@@ -60,6 +61,10 @@ func (c *BitbankClient) order(pair string, yen int64) error {
 		return fmt.Errorf("Failed to get price: %s", err)
 	}
 	amount := common.CalcAmount(price, yen, 10000)
+	if amount == 0 {
+		log.Print("Amount is too small")
+		return nil
+	}
 	requestBody := orderRequest{
 		Pair:   pair,
 		Amount: strconv.FormatFloat(amount, 'f', 4, 64),
