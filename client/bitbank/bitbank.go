@@ -33,11 +33,11 @@ func (c *BitbankClient) getNonce() string {
 	return fmt.Sprintf("%d", c.nonce)
 }
 
-func (c *BitbankClient) OrderBTC(yen int64) error {
+func (c *BitbankClient) OrderBTC(yen int64) (string, string, error) {
 	return c.order(BTC_JPY, yen)
 }
 
-func (c *BitbankClient) OrderETH(yen int64) error {
+func (c *BitbankClient) OrderETH(yen int64) (string, string, error) {
 	return c.order(ETH_JPY, yen)
 }
 
@@ -51,19 +51,21 @@ type orderRequest struct {
 type orderResponse struct {
 	Success int `json:"success"`
 	Data    struct {
-		Code int `json:"code"`
+		Code           int    `json:"code"`
+		ExecutedAmount string `json:"executed_amount"`
+		AveragePrice   string `json:"average_price"`
 	} `json:"data"`
 }
 
-func (c *BitbankClient) order(pair string, yen int64) error {
+func (c *BitbankClient) order(pair string, yen int64) (string, string, error) {
 	price, err := getPrice(pair)
 	if err != nil {
-		return fmt.Errorf("Failed to get price: %s", err)
+		return "", "", fmt.Errorf("Failed to get price: %s", err)
 	}
 	amount := common.CalcAmount(price, yen, 10000)
 	if amount == 0 {
 		log.Print("Amount is too small")
-		return nil
+		return "", "", nil
 	}
 	requestBody := orderRequest{
 		Pair:   pair,
@@ -73,11 +75,11 @@ func (c *BitbankClient) order(pair string, yen int64) error {
 	}
 	requestBodyJson, err := json.Marshal(requestBody)
 	if err != nil {
-		return fmt.Errorf("Failed to marshal request body: %s", err)
+		return "", "", fmt.Errorf("Failed to marshal request body: %s", err)
 	}
 	req, err := http.NewRequest("POST", fmt.Sprintf("%s/user/spot/order", PRIVATE_API_URL), bytes.NewReader(requestBodyJson))
 	if err != nil {
-		return fmt.Errorf("Failed to create request: %s", err)
+		return "", "", fmt.Errorf("Failed to create request: %s", err)
 	}
 	nonce := c.getNonce()
 	req.Header.Set("ACCESS-KEY", c.AccessKey)
@@ -87,18 +89,18 @@ func (c *BitbankClient) order(pair string, yen int64) error {
 	client := &http.Client{}
 	res, err := client.Do(req)
 	if err != nil {
-		return fmt.Errorf("Failed to order: %s", err)
+		return "", "", fmt.Errorf("Failed to order: %s", err)
 	}
 	defer res.Body.Close()
 
 	var order orderResponse
 	if err := json.NewDecoder(res.Body).Decode(&order); err != nil {
-		return fmt.Errorf("Failed to decode order: %s", err)
+		return "", "", fmt.Errorf("Failed to decode order: %s", err)
 	}
 	if order.Success != 1 {
-		return fmt.Errorf("Failed to order success code: %d", order.Data.Code)
+		return "", "", fmt.Errorf("Failed to order success code: %d", order.Data.Code)
 	}
-	return nil
+	return order.Data.ExecutedAmount, order.Data.AveragePrice, nil
 }
 
 type tickerResponse struct {

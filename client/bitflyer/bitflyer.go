@@ -31,11 +31,11 @@ func (c *BitflyerClient) getNonce() string {
 	return fmt.Sprintf("%d", c.nonce)
 }
 
-func (c *BitflyerClient) OrderBTC(yen int64) error {
+func (c *BitflyerClient) OrderBTC(yen int64) (string, string, error) {
 	return c.order(BTC_JPY, yen)
 }
 
-func (c *BitflyerClient) OrderETH(yen int64) error {
+func (c *BitflyerClient) OrderETH(yen int64) (string, string, error) {
 	return c.order(ETH_JPY, yen)
 }
 
@@ -50,10 +50,10 @@ type orderResponse struct {
 	ErrorMessage string `json:"error_message"`
 }
 
-func (c *BitflyerClient) order(pair string, yen int64) error {
+func (c *BitflyerClient) order(pair string, yen int64) (string, string, error) {
 	price, err := getPrice(pair)
 	if err != nil {
-		return fmt.Errorf("Failed to get price: %s", err)
+		return "", "", fmt.Errorf("Failed to get price: %s", err)
 	}
 	var amount float64
 	if pair == BTC_JPY {
@@ -65,7 +65,7 @@ func (c *BitflyerClient) order(pair string, yen int64) error {
 	}
 	if amount == 0 {
 		log.Print("Amount is too small")
-		return nil
+		return "", "", nil
 	}
 	requestBody := orderRequest{
 		ProductCode:    pair,
@@ -75,11 +75,11 @@ func (c *BitflyerClient) order(pair string, yen int64) error {
 	}
 	requestBodyJson, err := json.Marshal(requestBody)
 	if err != nil {
-		return fmt.Errorf("Failed to marshal request body: %s", err)
+		return "", "", fmt.Errorf("Failed to marshal request body: %s", err)
 	}
 	req, err := http.NewRequest("POST", fmt.Sprintf("%s/me/sendchildorder", API_URL), bytes.NewBuffer(requestBodyJson))
 	if err != nil {
-		return fmt.Errorf("Failed to create request: %s", err)
+		return "", "", fmt.Errorf("Failed to create request: %s", err)
 	}
 	nonce := c.getNonce()
 	req.Header.Set("ACCESS-KEY", c.AccessKey)
@@ -90,18 +90,18 @@ func (c *BitflyerClient) order(pair string, yen int64) error {
 	client := &http.Client{}
 	res, err := client.Do(req)
 	if err != nil {
-		return fmt.Errorf("Failed to send request: %s", err)
+		return "", "", fmt.Errorf("Failed to send request: %s", err)
 	}
 	defer res.Body.Close()
 
 	if res.StatusCode != 200 {
 		var orderResponse orderResponse
 		if err := json.NewDecoder(res.Body).Decode(&orderResponse); err != nil {
-			return fmt.Errorf("Failed to decode response: %s", err)
+			return "", "", fmt.Errorf("Failed to decode response: %s", err)
 		}
-		return fmt.Errorf("Failed to send request HTTP Status Code: %s, %s", res.Status, orderResponse.ErrorMessage)
+		return "", "", fmt.Errorf("Failed to send request HTTP Status Code: %s, %s", res.Status, orderResponse.ErrorMessage)
 	}
-	return nil
+	return fmt.Sprintf("%f", amount), "", nil
 }
 
 type tickerResponse struct {

@@ -9,8 +9,8 @@ import (
 )
 
 type client interface {
-	OrderBTC(int64) error
-	OrderETH(int64) error
+	OrderBTC(int64) (string, string, error)
+	OrderETH(int64) (string, string, error)
 }
 
 func CreateClient(exchange string) (client, error) {
