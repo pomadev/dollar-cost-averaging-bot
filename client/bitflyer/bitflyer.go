@@ -101,7 +101,7 @@ func (c *BitflyerClient) order(pair string, yen int64) (string, string, error) {
 		}
 		return "", "", fmt.Errorf("Failed to send request HTTP Status Code: %s, %s", res.Status, orderResponse.ErrorMessage)
 	}
-	return fmt.Sprintf("%f", amount), "", nil
+	return fmt.Sprintf("%f", amount), fmt.Sprintf("%d", price), nil
 }
 
 type tickerResponse struct {

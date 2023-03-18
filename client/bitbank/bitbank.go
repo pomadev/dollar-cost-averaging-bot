@@ -51,9 +51,7 @@ type orderRequest struct {
 type orderResponse struct {
 	Success int `json:"success"`
 	Data    struct {
-		Code           int    `json:"code"`
-		ExecutedAmount string `json:"executed_amount"`
-		AveragePrice   string `json:"average_price"`
+		Code int `json:"code"`
 	} `json:"data"`
 }
 
@@ -100,7 +98,7 @@ func (c *BitbankClient) order(pair string, yen int64) (string, string, error) {
 	if order.Success != 1 {
 		return "", "", fmt.Errorf("Failed to order success code: %d", order.Data.Code)
 	}
-	return order.Data.ExecutedAmount, order.Data.AveragePrice, nil
+	return fmt.Sprintf("%f", amount), fmt.Sprintf("%d", price), nil
 }
 
 type tickerResponse struct {
