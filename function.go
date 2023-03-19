@@ -44,7 +44,7 @@ func Crypto(ctx context.Context, m PubSubMessage) error {
 	if err != nil {
 		log.Fatalf("Failed to create client: %s\n", err)
 	}
-	if _, err := bot.PushMessage(os.Getenv("LINE_USER_ID"), linebot.NewTextMessage(fmt.Sprintf("以下を購入しました。\n\n[BTC]\n購入価格: %s円\n購入数量: %sBTC\n\n[ETH]\n購入価格: %s円\n購入数量: %sETH", bprice, bamount, eprice, eamount))).Do(); err != nil {
+	if _, err := bot.PushMessage(os.Getenv("LINE_USER_ID"), linebot.NewTextMessage(fmt.Sprintf("以下を購入しました。\n\n[BTC]\n価格: %s円\n数量: %sBTC\n\n[ETH]\n価格: %s円\n数量: %sETH", bprice, bamount, eprice, eamount))).Do(); err != nil {
 		log.Fatalf("Failed to push message: %s\n", err)
 	}
 	return nil

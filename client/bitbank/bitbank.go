@@ -98,7 +98,7 @@ func (c *BitbankClient) order(pair string, yen int64) (string, string, error) {
 	if order.Success != 1 {
 		return "", "", fmt.Errorf("Failed to order success code: %d", order.Data.Code)
 	}
-	return fmt.Sprintf("%f", amount), fmt.Sprintf("%d", price), nil
+	return fmt.Sprintf("%.4f", amount), fmt.Sprintf("%d", price), nil
 }
 
 type tickerResponse struct {
