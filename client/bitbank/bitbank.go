@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/pomadev/dollar-cost-averaging-bot/client"
 	"github.com/pomadev/dollar-cost-averaging-bot/client/common"
 )
 
@@ -60,16 +61,16 @@ func (c *BitbankClient) order(pair string, yen int64) (string, string, error) {
 	if err != nil {
 		return "", "", fmt.Errorf("Failed to get price: %s", err)
 	}
-	amount := common.CalcAmount(price, yen, 10000)
+	amount := common.CalcAmount(price, yen, client.BitbankPrecision)
 	if amount == 0 {
 		log.Print("Amount is too small")
 		return "", "", nil
 	}
 	requestBody := orderRequest{
 		Pair:   pair,
-		Amount: strconv.FormatFloat(amount, 'f', 4, 64),
-		Side:   "buy",
-		Type:   "market",
+		Amount: strconv.FormatFloat(amount, client.AmountFormatVerb, client.AmountFormatPrecision, 64),
+		Side:   client.OrderSideBuy,
+		Type:   client.OrderTypeMarket,
 	}
 	requestBodyJson, err := json.Marshal(requestBody)
 	if err != nil {
@@ -95,10 +96,10 @@ func (c *BitbankClient) order(pair string, yen int64) (string, string, error) {
 	if err := json.NewDecoder(res.Body).Decode(&order); err != nil {
 		return "", "", fmt.Errorf("Failed to decode order: %s", err)
 	}
-	if order.Success != 1 {
+	if order.Success != client.SuccessCode {
 		return "", "", fmt.Errorf("Failed to order success code: %d", order.Data.Code)
 	}
-	return fmt.Sprintf("%.4f", amount), fmt.Sprintf("%d", price), nil
+	return fmt.Sprintf("%.*f", client.AmountFormatPrecision, amount), fmt.Sprintf("%d", price), nil
 }
 
 type tickerResponse struct {
@@ -120,7 +121,7 @@ func getPrice(pair string) (int64, error) {
 	if err := json.NewDecoder(res.Body).Decode(&ticker); err != nil {
 		return 0, fmt.Errorf("Failed to decode ticker: %s", err)
 	}
-	if ticker.Success != 1 {
+	if ticker.Success != client.SuccessCode {
 		return 0, fmt.Errorf("Failed to get ticker success code: %d", ticker.Data.Code)
 	}
 	p, err := strconv.ParseInt(ticker.Data.Buy, 10, 64)

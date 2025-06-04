@@ -9,6 +9,7 @@ import (
 
 	"github.com/line/line-bot-sdk-go/v7/linebot"
 	"github.com/pomadev/dollar-cost-averaging-bot/client"
+	"github.com/pomadev/dollar-cost-averaging-bot/notification"
 )
 
 // PubSubMessage is the payload of a Pub/Sub event. Please refer to the docs for
@@ -44,7 +45,7 @@ func Crypto(ctx context.Context, m PubSubMessage) error {
 	if err != nil {
 		log.Fatalf("Failed to create client: %s\n", err)
 	}
-	if _, err := bot.PushMessage(os.Getenv("LINE_USER_ID"), linebot.NewTextMessage(fmt.Sprintf("以下を購入しました。\n\n[BTC]\n価格: %s円\n数量: %sBTC\n\n[ETH]\n価格: %s円\n数量: %sETH", bprice, bamount, eprice, eamount))).Do(); err != nil {
+	if _, err := bot.PushMessage(os.Getenv("LINE_USER_ID"), linebot.NewTextMessage(fmt.Sprintf(notification.PurchaseMessageTemplate, bprice, bamount, eprice, eamount))).Do(); err != nil {
 		log.Fatalf("Failed to push message: %s\n", err)
 	}
 	return nil

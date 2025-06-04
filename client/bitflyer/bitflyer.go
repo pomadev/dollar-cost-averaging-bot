@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/pomadev/dollar-cost-averaging-bot/client"
 	"github.com/pomadev/dollar-cost-averaging-bot/client/common"
 )
 
@@ -57,9 +58,9 @@ func (c *BitflyerClient) order(pair string, yen int64) (string, string, error) {
 	}
 	var amount float64
 	if pair == BTC_JPY {
-		amount = common.CalcAmount(price, yen, 1000)
+		amount = common.CalcAmount(price, yen, client.BitflyerBTCPrecision)
 	} else if pair == ETH_JPY {
-		amount = common.CalcAmount(price, yen, 100)
+		amount = common.CalcAmount(price, yen, client.BitflyerETHPrecision)
 	} else {
 		amount = 0
 	}
@@ -94,7 +95,7 @@ func (c *BitflyerClient) order(pair string, yen int64) (string, string, error) {
 	}
 	defer res.Body.Close()
 
-	if res.StatusCode != 200 {
+	if res.StatusCode != client.HTTPStatusOK {
 		var orderResponse orderResponse
 		if err := json.NewDecoder(res.Body).Decode(&orderResponse); err != nil {
 			return "", "", fmt.Errorf("Failed to decode response: %s", err)
