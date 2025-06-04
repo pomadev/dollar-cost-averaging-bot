@@ -6,37 +6,25 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"time"
 
+	"github.com/pomadev/dollar-cost-averaging-bot/client"
 	"github.com/pomadev/dollar-cost-averaging-bot/client/common"
 )
 
 const (
 	API_URL = "https://api.bitflyer.com/v1/"
-	BTC_JPY = "BTC_JPY"
-	ETH_JPY = "ETH_JPY"
 )
 
 type BitflyerClient struct {
-	AccessKey string
-	ApiSecret string
-	nonce     int64
-}
-
-func (c *BitflyerClient) getNonce() string {
-	if c.nonce == 0 {
-		c.nonce = time.Now().Unix()
-	}
-	c.nonce++
-	return fmt.Sprintf("%d", c.nonce)
+	client.BaseClient
 }
 
 func (c *BitflyerClient) OrderBTC(yen int64) (string, string, error) {
-	return c.order(BTC_JPY, yen)
+	return c.order("BTC_JPY", yen)
 }
 
 func (c *BitflyerClient) OrderETH(yen int64) (string, string, error) {
-	return c.order(ETH_JPY, yen)
+	return c.order("ETH_JPY", yen)
 }
 
 type orderRequest struct {
@@ -56,9 +44,9 @@ func (c *BitflyerClient) order(pair string, yen int64) (string, string, error) {
 		return "", "", fmt.Errorf("Failed to get price: %s", err)
 	}
 	var amount float64
-	if pair == BTC_JPY {
+	if pair == "BTC_JPY" {
 		amount = common.CalcAmount(price, yen, 1000)
-	} else if pair == ETH_JPY {
+	} else if pair == "ETH_JPY" {
 		amount = common.CalcAmount(price, yen, 100)
 	} else {
 		amount = 0
@@ -81,7 +69,7 @@ func (c *BitflyerClient) order(pair string, yen int64) (string, string, error) {
 	if err != nil {
 		return "", "", fmt.Errorf("Failed to create request: %s", err)
 	}
-	nonce := c.getNonce()
+	nonce := c.GetNonce()
 	req.Header.Set("ACCESS-KEY", c.AccessKey)
 	req.Header.Set("ACCESS-TIMESTAMP", nonce)
 	req.Header.Set("ACCESS-SIGN", common.MakeSign(nonce+"POST"+"/v1/me/sendchildorder"+string(requestBodyJson), c.ApiSecret))
