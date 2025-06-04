@@ -32,11 +32,11 @@ func Crypto(ctx context.Context, m PubSubMessage) error {
 	if err != nil {
 		log.Fatalf("Failed to create client: %s\n", err)
 	}
-	bamount, bprice, err := c.OrderBTC(btc)
+	bamount, bprice, err := c.OrderBTC(ctx, btc)
 	if err != nil {
 		log.Fatalf("Failed to order BTC: %s\n", err)
 	}
-	eamount, eprice, err := c.OrderETH(eth)
+	eamount, eprice, err := c.OrderETH(ctx, eth)
 	if err != nil {
 		log.Fatalf("Failed to order ETH: %s\n", err)
 	}

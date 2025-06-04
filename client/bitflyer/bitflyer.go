@@ -2,6 +2,7 @@ package bitflyer
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -31,12 +32,12 @@ func (c *BitflyerClient) getNonce() string {
 	return fmt.Sprintf("%d", c.nonce)
 }
 
-func (c *BitflyerClient) OrderBTC(yen int64) (string, string, error) {
-	return c.order(BTC_JPY, yen)
+func (c *BitflyerClient) OrderBTC(ctx context.Context, yen int64) (string, string, error) {
+	return c.order(ctx, BTC_JPY, yen)
 }
 
-func (c *BitflyerClient) OrderETH(yen int64) (string, string, error) {
-	return c.order(ETH_JPY, yen)
+func (c *BitflyerClient) OrderETH(ctx context.Context, yen int64) (string, string, error) {
+	return c.order(ctx, ETH_JPY, yen)
 }
 
 type orderRequest struct {
@@ -50,8 +51,8 @@ type orderResponse struct {
 	ErrorMessage string `json:"error_message"`
 }
 
-func (c *BitflyerClient) order(pair string, yen int64) (string, string, error) {
-	price, err := getPrice(pair)
+func (c *BitflyerClient) order(ctx context.Context, pair string, yen int64) (string, string, error) {
+	price, err := getPrice(ctx, pair)
 	if err != nil {
 		return "", "", fmt.Errorf("Failed to get price: %s", err)
 	}
@@ -77,7 +78,7 @@ func (c *BitflyerClient) order(pair string, yen int64) (string, string, error) {
 	if err != nil {
 		return "", "", fmt.Errorf("Failed to marshal request body: %s", err)
 	}
-	req, err := http.NewRequest("POST", fmt.Sprintf("%s/me/sendchildorder", API_URL), bytes.NewBuffer(requestBodyJson))
+	req, err := http.NewRequestWithContext(ctx, "POST", fmt.Sprintf("%s/me/sendchildorder", API_URL), bytes.NewBuffer(requestBodyJson))
 	if err != nil {
 		return "", "", fmt.Errorf("Failed to create request: %s", err)
 	}
@@ -109,8 +110,12 @@ type tickerResponse struct {
 	Ltp   float64 `json:"ltp"`
 }
 
-func getPrice(pair string) (int64, error) {
-	res, err := http.Get(fmt.Sprintf("%s/ticker?product_code=%s", API_URL, pair))
+func getPrice(ctx context.Context, pair string) (int64, error) {
+	req, err := http.NewRequestWithContext(ctx, "GET", fmt.Sprintf("%s/ticker?product_code=%s", API_URL, pair), nil)
+	if err != nil {
+		return 0, fmt.Errorf("Failed to create request: %s", err)
+	}
+	res, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return 0, fmt.Errorf("Failed to get ticker: %s", err)
 	}

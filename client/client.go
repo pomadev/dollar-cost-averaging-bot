@@ -1,6 +1,7 @@
 package client
 
 import (
+	"context"
 	"fmt"
 	"os"
 
@@ -9,8 +10,8 @@ import (
 )
 
 type client interface {
-	OrderBTC(int64) (string, string, error)
-	OrderETH(int64) (string, string, error)
+	OrderBTC(ctx context.Context, amount int64) (string, string, error)
+	OrderETH(ctx context.Context, amount int64) (string, string, error)
 }
 
 func CreateClient(exchange string) (client, error) {
