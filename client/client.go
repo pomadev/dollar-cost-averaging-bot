@@ -2,10 +2,10 @@ package client
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/pomadev/dollar-cost-averaging-bot/client/bitbank"
 	"github.com/pomadev/dollar-cost-averaging-bot/client/bitflyer"
+	"github.com/pomadev/dollar-cost-averaging-bot/config"
 )
 
 type client interface {
@@ -13,19 +13,13 @@ type client interface {
 	OrderETH(int64) (string, string, error)
 }
 
-func CreateClient(exchange string) (client, error) {
-	accessKey := os.Getenv("ACCESS_KEY")
-	apiSecret := os.Getenv("API_SECRET")
-	if accessKey == "" || apiSecret == "" {
-		return nil, fmt.Errorf("ACCESS_KEY or API_SECRET is not set")
-	}
-
-	switch exchange {
+func CreateClient(cfg *config.Config) (client, error) {
+	switch cfg.Exchange {
 	case "bitbank":
-		return &bitbank.BitbankClient{AccessKey: accessKey, ApiSecret: apiSecret}, nil
+		return &bitbank.BitbankClient{AccessKey: cfg.AccessKey, ApiSecret: cfg.APISecret}, nil
 	case "bitflyer":
-		return &bitflyer.BitflyerClient{AccessKey: accessKey, ApiSecret: apiSecret}, nil
+		return &bitflyer.BitflyerClient{AccessKey: cfg.AccessKey, ApiSecret: cfg.APISecret}, nil
 	default:
-		return nil, fmt.Errorf("Unknown exchange: %s", exchange)
+		return nil, fmt.Errorf("Unknown exchange: %s", cfg.Exchange)
 	}
 }
