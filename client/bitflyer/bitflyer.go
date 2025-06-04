@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"time"
 
@@ -64,8 +63,7 @@ func (c *BitflyerClient) order(pair string, yen int64) (string, string, error) {
 		amount = 0
 	}
 	if amount == 0 {
-		log.Print("Amount is too small")
-		return "", "", nil
+		return "", "", fmt.Errorf("amount is too small for %s: %d yen", pair, yen)
 	}
 	requestBody := orderRequest{
 		ProductCode:    pair,
