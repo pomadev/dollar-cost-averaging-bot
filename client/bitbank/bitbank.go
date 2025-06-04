@@ -7,38 +7,26 @@ import (
 	"log"
 	"net/http"
 	"strconv"
-	"time"
 
+	"github.com/pomadev/dollar-cost-averaging-bot/client"
 	"github.com/pomadev/dollar-cost-averaging-bot/client/common"
 )
 
 const (
 	PUBLIC_API_URL  = "https://public.bitbank.cc"
 	PRIVATE_API_URL = "https://api.bitbank.cc/v1"
-	BTC_JPY         = "btc_jpy"
-	ETH_JPY         = "eth_jpy"
 )
 
 type BitbankClient struct {
-	AccessKey string
-	ApiSecret string
-	nonce     int64
-}
-
-func (c *BitbankClient) getNonce() string {
-	if c.nonce == 0 {
-		c.nonce = time.Now().Unix()
-	}
-	c.nonce++
-	return fmt.Sprintf("%d", c.nonce)
+	client.BaseClient
 }
 
 func (c *BitbankClient) OrderBTC(yen int64) (string, string, error) {
-	return c.order(BTC_JPY, yen)
+	return c.order(string(client.BTCJPY), yen)
 }
 
 func (c *BitbankClient) OrderETH(yen int64) (string, string, error) {
-	return c.order(ETH_JPY, yen)
+	return c.order(string(client.ETHJPY), yen)
 }
 
 type orderRequest struct {
@@ -79,7 +67,7 @@ func (c *BitbankClient) order(pair string, yen int64) (string, string, error) {
 	if err != nil {
 		return "", "", fmt.Errorf("Failed to create request: %s", err)
 	}
-	nonce := c.getNonce()
+	nonce := c.GetNonce()
 	req.Header.Set("ACCESS-KEY", c.AccessKey)
 	req.Header.Set("ACCESS-NONCE", nonce)
 	req.Header.Set("ACCESS-SIGNATURE", common.MakeSign(nonce+string(requestBodyJson), c.ApiSecret))
