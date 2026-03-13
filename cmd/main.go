@@ -1,7 +1,16 @@
 package main
 
-import p "github.com/pomadev/dollar-cost-averaging-bot"
+import (
+	"context"
+	"log"
+	"os"
+
+	dca "github.com/pomadev/dollar-cost-averaging-bot"
+)
 
 func main() {
-	p.Crypto(nil, p.PubSubMessage{})
+	if err := dca.Run(context.Background()); err != nil {
+		log.Printf("job failed: %v", err)
+		os.Exit(1)
+	}
 }

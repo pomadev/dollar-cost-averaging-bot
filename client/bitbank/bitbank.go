@@ -2,9 +2,9 @@ package bitbank
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"strconv"
 	"time"
@@ -16,29 +16,38 @@ const (
 	PUBLIC_API_URL  = "https://public.bitbank.cc"
 	PRIVATE_API_URL = "https://api.bitbank.cc/v1"
 	BTC_JPY         = "btc_jpy"
-	ETH_JPY         = "eth_jpy"
 )
 
-type BitbankClient struct {
-	AccessKey string
-	ApiSecret string
-	nonce     int64
+type Client struct {
+	AccessKey  string
+	ApiSecret  string
+	HTTPClient *http.Client
+	nonce      int64
 }
 
-func (c *BitbankClient) getNonce() string {
+type OrderResult struct {
+	AmountBTC float64
+	PriceYen  int64
+	DryRun    bool
+}
+
+func NewClient(accessKey, apiSecret string, httpClient *http.Client) *Client {
+	if httpClient == nil {
+		httpClient = &http.Client{Timeout: 10 * time.Second}
+	}
+	return &Client{
+		AccessKey:  accessKey,
+		ApiSecret:  apiSecret,
+		HTTPClient: httpClient,
+	}
+}
+
+func (c *Client) getNonce() string {
 	if c.nonce == 0 {
 		c.nonce = time.Now().Unix()
 	}
 	c.nonce++
 	return fmt.Sprintf("%d", c.nonce)
-}
-
-func (c *BitbankClient) OrderBTC(yen int64) (string, string, error) {
-	return c.order(BTC_JPY, yen)
-}
-
-func (c *BitbankClient) OrderETH(yen int64) (string, string, error) {
-	return c.order(ETH_JPY, yen)
 }
 
 type orderRequest struct {
@@ -55,50 +64,61 @@ type orderResponse struct {
 	} `json:"data"`
 }
 
-func (c *BitbankClient) order(pair string, yen int64) (string, string, error) {
-	price, err := getPrice(pair)
+func (c *Client) BuyBTC(ctx context.Context, yen int64, dryRun bool) (OrderResult, error) {
+	price, err := c.getPrice(ctx, BTC_JPY)
 	if err != nil {
-		return "", "", fmt.Errorf("Failed to get price: %s", err)
+		return OrderResult{}, fmt.Errorf("get BTC price: %w", err)
 	}
 	amount := common.CalcAmount(price, yen, 10000)
 	if amount == 0 {
-		log.Print("Amount is too small")
-		return "", "", nil
+		return OrderResult{}, fmt.Errorf("amount is too small for BTC_YEN=%d at price=%d", yen, price)
 	}
+	if dryRun {
+		return OrderResult{
+			AmountBTC: amount,
+			PriceYen:  price,
+			DryRun:    true,
+		}, nil
+	}
+
 	requestBody := orderRequest{
-		Pair:   pair,
+		Pair:   BTC_JPY,
 		Amount: strconv.FormatFloat(amount, 'f', 4, 64),
 		Side:   "buy",
 		Type:   "market",
 	}
 	requestBodyJson, err := json.Marshal(requestBody)
 	if err != nil {
-		return "", "", fmt.Errorf("Failed to marshal request body: %s", err)
+		return OrderResult{}, fmt.Errorf("marshal request body: %w", err)
 	}
-	req, err := http.NewRequest("POST", fmt.Sprintf("%s/user/spot/order", PRIVATE_API_URL), bytes.NewReader(requestBodyJson))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, fmt.Sprintf("%s/user/spot/order", PRIVATE_API_URL), bytes.NewReader(requestBodyJson))
 	if err != nil {
-		return "", "", fmt.Errorf("Failed to create request: %s", err)
+		return OrderResult{}, fmt.Errorf("create request: %w", err)
 	}
 	nonce := c.getNonce()
 	req.Header.Set("ACCESS-KEY", c.AccessKey)
 	req.Header.Set("ACCESS-NONCE", nonce)
 	req.Header.Set("ACCESS-SIGNATURE", common.MakeSign(nonce+string(requestBodyJson), c.ApiSecret))
+	req.Header.Set("Content-Type", "application/json")
 
-	client := &http.Client{}
-	res, err := client.Do(req)
+	res, err := c.HTTPClient.Do(req)
 	if err != nil {
-		return "", "", fmt.Errorf("Failed to order: %s", err)
+		return OrderResult{}, fmt.Errorf("submit order: %w", err)
 	}
 	defer res.Body.Close()
 
 	var order orderResponse
 	if err := json.NewDecoder(res.Body).Decode(&order); err != nil {
-		return "", "", fmt.Errorf("Failed to decode order: %s", err)
+		return OrderResult{}, fmt.Errorf("decode order: %w", err)
 	}
 	if order.Success != 1 {
-		return "", "", fmt.Errorf("Failed to order success code: %d", order.Data.Code)
+		return OrderResult{}, fmt.Errorf("bitbank order failed with code: %d", order.Data.Code)
 	}
-	return fmt.Sprintf("%.4f", amount), fmt.Sprintf("%d", price), nil
+	return OrderResult{
+		AmountBTC: amount,
+		PriceYen:  price,
+		DryRun:    false,
+	}, nil
 }
 
 type tickerResponse struct {
@@ -109,23 +129,27 @@ type tickerResponse struct {
 	} `json:"data"`
 }
 
-func getPrice(pair string) (int64, error) {
-	res, err := http.Get(fmt.Sprintf("%s/%s/ticker", PUBLIC_API_URL, pair))
+func (c *Client) getPrice(ctx context.Context, pair string) (int64, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("%s/%s/ticker", PUBLIC_API_URL, pair), nil)
 	if err != nil {
-		return 0, fmt.Errorf("Failed to get ticker: %s", err)
+		return 0, fmt.Errorf("create ticker request: %w", err)
+	}
+	res, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return 0, fmt.Errorf("get ticker: %w", err)
 	}
 	defer res.Body.Close()
 
 	var ticker tickerResponse
 	if err := json.NewDecoder(res.Body).Decode(&ticker); err != nil {
-		return 0, fmt.Errorf("Failed to decode ticker: %s", err)
+		return 0, fmt.Errorf("decode ticker: %w", err)
 	}
 	if ticker.Success != 1 {
-		return 0, fmt.Errorf("Failed to get ticker success code: %d", ticker.Data.Code)
+		return 0, fmt.Errorf("bitbank ticker failed with code: %d", ticker.Data.Code)
 	}
 	p, err := strconv.ParseInt(ticker.Data.Buy, 10, 64)
 	if err != nil {
-		return 0, fmt.Errorf("Failed to parse buy price: %s", err)
+		return 0, fmt.Errorf("parse buy price: %w", err)
 	}
 	return p, nil
 }
